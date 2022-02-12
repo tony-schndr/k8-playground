@@ -14,3 +14,7 @@ Then use kubeadm init to bootstrap the control plane
 kubeadm init --pod-network-cidr 172.18.0.0/16 \
   --apiserver-advertise-address 10.240.0.21
 ```
+
+```
+kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+```
