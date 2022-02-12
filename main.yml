@@ -1,0 +1,172 @@
+---
+- hosts: kubernetes
+  gather_facts: yes
+  become: yes
+  vars:
+    pod_cidr: 172.18.0.0/16
+  tasks:
+    - name: Disable SWAP on kubernetes workers
+      shell: |
+        swapoff -a
+
+    - name: Disable SWAP in fstab on kubernetes workers
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Install required packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+        update_cache: yes
+
+    - name: Download google apt key
+      get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+    - name: Add google apt key
+      shell:
+        cmd: 'echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list'
+
+    - name: Install required packages
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        pkg:
+          - kubelet
+          - kubeadm
+          - kubectl
+        update_cache: yes
+
+    - name: pin version for kubelet, kubeadm, kubectl
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      with_items:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: enable br_netfilter and overlay
+      command:
+        cmd: modprobe "{{ item }}"
+      with_items:
+        - br_netfilter
+        - overlay
+
+    - name: Copy ip tables config for bridged traffic
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - src: files/etc/modules-load.d/k8s.conf
+          dest: /etc/modules-load.d/k8s.conf
+        - src: files/etc/sysctl.d/k8s.conf
+          dest: /etc/sysctl.d/k8s.conf
+
+    - name: Configure kernel params for br_netfilter and overlay
+      command:
+        cmd: sysctl --system
+
+    - name: Create required kubernetes directory
+      file:
+        state: directory
+        path: "{{ item }}"
+        mode: 755
+      with_items:
+        - /etc/cni/net.d
+        - /opt/cni/bin
+        - /var/tmp/containerd
+        - /etc/containerd
+
+    - name:  Download worker binaries
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ item.path }}"
+        mode: 0755
+      with_items:
+        - url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.21.0/crictl-v1.21.0-linux-amd64.tar.gz
+          path: /var/tmp
+        - url: https://github.com/opencontainers/runc/releases/download/v1.0.0-rc93/runc.amd64
+          path: /usr/local/bin/runc
+        - url: https://github.com/containernetworking/plugins/releases/download/v0.9.1/cni-plugins-linux-amd64-v0.9.1.tgz
+          path: /var/tmp
+        - url: https://github.com/containerd/containerd/releases/download/v1.4.4/containerd-1.4.4-linux-amd64.tar.gz
+          path: /var/tmp
+
+    - name: unpack downloaded binaries
+      unarchive:
+        src: "{{ item.src}}"
+        dest: "{{ item.dest }}"
+        remote_src: yes
+        mode: 755
+      with_items:
+        - src: /var/tmp/crictl-v1.21.0-linux-amd64.tar.gz
+          dest: /usr/local/bin
+        - src: /var/tmp/cni-plugins-linux-amd64-v0.9.1.tgz
+          dest:  /opt/cni/bin/
+        - src: /var/tmp/containerd-1.4.4-linux-amd64.tar.gz
+          dest: /var/tmp/containerd
+
+    - name: Copy containerd binaries into /bin/
+      copy:
+        src: /var/tmp/containerd/bin/
+        dest: /bin/
+        mode: "0755"
+        remote_src: yes
+
+    - name: Change permissions for containerd bin files
+      file:
+        path: /bin/{{ item }}
+        mode: 0755
+      with_items:
+        - containerd
+        - containerd-shim
+        - containerd-shim-runc-v1
+        - containerd-shim-runc-v2
+        - ctr
+
+    - name: Copy containerd config files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - src: files/containerd.service
+          dest: /etc/systemd/system/
+        - src: files/containerd/config.toml
+          dest: /etc/containerd/config.toml
+        - src: files/etc/sysctl.d/99-kubernetes-cri.conf
+          dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        - src: files/etc/modules-load.d/containerd.conf
+          dest: /etc/modules-load.d/containerd.conf
+
+    - name: Install a list of packages
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        pkg:
+        - socat
+        - conntrack
+        - ipset
+
+    - name: template CNI Networking
+      template:
+        src: templates/10-bridge.conf.j2
+        dest: /etc/cni/net.d/10-bridge.conf
+
+    - name: Copy loopback network config
+      copy:
+        src: files/99-loopback.conf
+        dest: /etc/cni/net.d/99-loopback.conf"
+
+    - name: start service containerd
+      ansible.builtin.service:
+        name:  containerd
+        state: started
+        enabled: yes
