@@ -2,8 +2,6 @@
 - hosts: kubernetes
   gather_facts: yes
   become: yes
-  vars:
-    pod_cidr: 172.18.0.0/16
   tasks:
     - name: Disable SWAP on kubernetes workers
       shell: |
@@ -43,6 +41,19 @@
           - kubeadm
           - kubectl
         update_cache: yes
+
+    - name: update kubelet config with node ip
+      lineinfile:
+        line:  Environment="KUBELET_EXTRA_ARGS=--node-ip={{ ansible_eth1.ipv4.address }}"
+        path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        state: present
+
+    - name: reload systemd
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: restarted
+        daemon_reload: yes
 
     - name: pin version for kubelet, kubeadm, kubectl
       dpkg_selections:
@@ -142,8 +153,7 @@
         - src: files/etc/modules-load.d/containerd.conf
           dest: /etc/modules-load.d/containerd.conf
 
-
-    - name: Configure kernel params
+    - name: Configure kernel params for br_netfilter and overlay
       command:
         cmd: sysctl --system
 
