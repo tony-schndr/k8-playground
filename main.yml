@@ -47,6 +47,7 @@
         line:  Environment="KUBELET_EXTRA_ARGS=--node-ip={{ ansible_eth1.ipv4.address }}"
         path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
         state: present
+      when: inventory_hostname in groups['worker']
 
     - name: reload systemd
       systemd:
@@ -54,6 +55,7 @@
         enabled: yes
         state: restarted
         daemon_reload: yes
+      when: inventory_hostname in groups['worker']
 
     - name: pin version for kubelet, kubeadm, kubectl
       dpkg_selections:
