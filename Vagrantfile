@@ -7,15 +7,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "bento/ubuntu-20.04"
 
   config.vm.provider :virtualbox do |v|
-    #v.memory = 4096
-    #v.cpus = 2
     v.linked_clone = true
   end
 
   # Define VMs with static private IP addresses.
   boxes = [
     { :name => "controller-1", :ip => "10.240.0.21" },
-    { :name => "controller-2", :ip => "10.240.0.22" },
+    #{ :name => "controller-2", :ip => "10.240.0.22" },
     { :name => "worker-1", :ip => "10.240.0.31" },
     { :name => "worker-2", :ip => "10.240.0.32"},
   ]
@@ -27,7 +25,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       config.vm.network :private_network, ip: opts[:ip]
       if opts[:name] == "worker-1" || opts[:name] == "worker-2"
         config.vm.provider :virtualbox do |vb|
-          vb.customize ["modifyvm", :id, "--memory", "8192"]
+          vb.customize ["modifyvm", :id, "--memory", "2048"]
           vb.customize ["modifyvm", :id, "--cpus", "2"]
         end
       end
