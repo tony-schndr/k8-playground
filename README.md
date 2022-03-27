@@ -15,14 +15,10 @@ kubeadm init --pod-network-cidr 10.32.0.0/16 \
   --apiserver-advertise-address 10.240.0.21
 ```
 
+Apply networking plugin
 ```
 kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 ```
-update workers kubelet config to add --node-ip, this fixes "kubectl exec return error: unable to upgrade connection: pod does not exist" https://github.com/kubernetes/kubernetes/issues/63702
-
-vim /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-Environment="KUBELET_EXTRA_ARGS=--node-ip=10.240.0.32"
-
 
 helpful network debugging pod
 
@@ -47,5 +43,18 @@ edit the metrics server deployment and pass `--kubelet-insecure-tls`
         - --kubelet-use-node-status-port
         - --metric-resolution=15s
         image: k8s.gcr.io/metrics-server/metrics-server:v0.6.1
+
+```
+
+---
+## ETCD
+Run etcd commands using etcdctl, if etcd is deployed via pod on the controller use kubectl exec $etcd_pod_name -n kube-system -- <etcdctl command here>
+```
+# take a snapshot of the etcd cluster
+ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --cacert=/etc/kubernetes/pki/etcd/ca.crt snapshot save /var/lib/etcd/backup.db
+
+```
+```
+# Restore etcd cluster from snapshot
 
 ```
