@@ -1,0 +1,1 @@
+Configure a 2 GiB persistent storage solution that uses a permanent directory on the host that runs the Pod
