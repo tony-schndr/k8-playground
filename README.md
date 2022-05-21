@@ -131,13 +131,29 @@ edit the metrics server deployment and pass `--kubelet-insecure-tls`
 
 ETCD
 ---
-Run etcd commands using etcdctl, if etcd is deployed via pod on the controller use kubectl exec $etcd_pod_name -n kube-system -- <etcdctl command here>
+Backup / Restore of etcd
+#### Take a snapshot of the etcd cluster
+NOTE: Tested with a single control plane node.
 ```
-# take a snapshot of the etcd cluster
-ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --cacert=/etc/kubernetes/pki/etcd/ca.crt snapshot save /var/lib/etcd/backup.db
+kubectl -n kube-system exec -it etcd-controller-1 -- sh -c "ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --cacert=/etc/kubernetes/pki/etcd/ca.crt snapshot save /var/lib/etcd/backup.db"
+```
+
+#### Restore etcd cluster from snapshot.
+Stop the kube-apiserver before restore, if the kube-apiserver is deployed via kubelet manifest, move the manifest.
+Then use crictl to exec commands, find the etcd container `crictl ps | grep etcd`
+```
+crictl exec -it 87351a93bc4a6 sh -c "etcdctl snapshot restore /var/lib/etcd/backup.db --data-dir /var/lib/etcd/backup"
+```
+Stop etcd, move the manifest like with kube-apiserver
+
+Move the newly restored etcd data directory back into place
 
 ```
+rm -rf /var/lib/etcd/member
+mv /var/lib/etcd/backup/member /var/lib/etcd
 ```
-# Restore etcd cluster from snapshot
 
+Move the manifests back to start etcd and api-server
+```
+mv /etc/kubernetes/*.yaml /etc/kubernetes/manifests/
 ```

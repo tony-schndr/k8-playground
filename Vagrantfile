@@ -13,7 +13,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Define VMs with static private IP addresses.
   boxes = [
     { :name => "controller-1", :ip => "10.240.0.21" },
-    #{ :name => "controller-2", :ip => "10.240.0.22" },
     { :name => "worker-1", :ip => "10.240.0.31" },
     { :name => "worker-2", :ip => "10.240.0.32"},
   ]
@@ -29,7 +28,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           vb.customize ["modifyvm", :id, "--cpus", "2"]
         end
       end
-      if opts[:name] == "controller-1"
+      if opts[:name] == "controller-1" || opts[:name] == "controller-2" || opts[:name] == "controller-3"
         config.vm.provider :virtualbox do |vb|
           vb.customize ["modifyvm", :id, "--memory", "2048"]
           vb.customize ["modifyvm", :id, "--cpus", "2"]
@@ -44,18 +43,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           ansible.become = true
           ansible.groups = {
             "kubernetes" => ["worker-1", "worker-2",
-                             "controller-1", "controller-2", "etcd-1", "etcd-2", "etcd-3"],
-            "controller" => ["controller-1", "controller-2"],
+                             "controller-1", "controller-2", "controller-3"],
+            "controller" => ["controller-1", "controller-2", "controller-3"],
             "etcd" => ["etcd-1", "etcd-2", "etcd-3"],
-            # "kubernetes_master:vars" => {
-            #   kubernetes_role: "master",
-            #   swapfile_path: "/dev/mapper/ubuntu--vg-ubuntu--lv",
-            #   kubernetes_apiserver_advertise_address: "192.168.33.71"
-            # },
             "worker" => ["worker-1", "worker-2"],
             "worker:vars" => {
               kubernetes_role: "worker",
-              #swapfile_path: "/dev/mapper/vagrant--vg-swap_1"
             }
           }
         end
