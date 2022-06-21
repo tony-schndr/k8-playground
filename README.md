@@ -1,25 +1,11 @@
-# Kubernetes base install of kubeadm
+# Kubernetes base install with kubeadm
 
-This project uses vagrant, vbox, and ansible to bootstrap 3 VMs and install
-the base configuration needed to use kubeadm command.
+This project uses vagrant, libvirt, and ansible to bootstrap 3 VMs and install
+the base configuration needed to use kubeadm command to create a 1 master 2 worker
+kubernetes cluster.
 
 Start the virtual machines
 `vagrant up`
-
-IF you run into an ACCESSDENIED error when setting up networking similar to below:
-```
-There was an error while executing `VBoxManage`, a CLI used by Vagrant
-for controlling VirtualBox. The command and stderr is shown below.
-
-Command: ["hostonlyif", "ipconfig", "vboxnet1", "--ip", "10.240.0.1", "--netmask", "255.255.255.0"]
-
-Stderr: VBoxManage: error: Code E_ACCESSDENIED (0x80070005) - Access denied (extended info not available)
-VBoxManage: error: Context: "EnableStaticIPConfig(Bstr(pszIp).raw(), Bstr(pszNetmask).raw())" at line 242 of file VBoxManageHostonly.cpp
-```
-THEN create the file `/etc/vbox/networks.conf` and add the IP range used by the vms 
-```
-* 10.240.0.0/16
-```
 
 Once virtual machines are up, ssh into the primary controller with
 `vagrant ssh controller-1`
@@ -27,7 +13,7 @@ Once virtual machines are up, ssh into the primary controller with
 Then use kubeadm init to bootstrap the control plane
 ```
 kubeadm init --pod-network-cidr 10.32.0.0/16 \
-  --apiserver-advertise-address 10.240.0.21
+  --apiserver-advertise-address 192.168.1.21
 ```
 
 Set kubeconfg to start using the cluster
@@ -39,8 +25,8 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 Join the worker nodes, ssh into `worker-1` and `worker-2` using `vagrant ssh`, become root with `sudo -i`, and run kubeadm join command that was output during kubeadm init
 ```
-kubeadm join 10.240.0.21:6443 --token qt6rqz.xw97h2qodnaw03t9 \
-        --discovery-token-ca-cert-hash sha256:32e0062f38a44602c99e54fe010b8708a03f178f3dec55644d001fe8ba33b54e 
+kubeadm join 192.168.1.21:6443 --token owmpxs.7a4gv8o87do0aw3w \
+        --discovery-token-ca-cert-hash sha256:a1e8201bd0975e6d1581b82111b970b9b4ad5bf3278f9734f3428eb8d5b4e487
 ```
 
 Apply networking plugin

@@ -4,17 +4,17 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "bento/ubuntu-20.04"
+  config.vm.box = "generic/ubuntu2004"
 
-  config.vm.provider :virtualbox do |v|
-    v.linked_clone = true
+  config.vm.provider :libvirt do |v|
+    v.qemu_use_session = false 
   end
 
   # Define VMs with static private IP addresses.
   boxes = [
-    { :name => "controller-1", :ip => "10.240.0.21" },
-    { :name => "worker-1", :ip => "10.240.0.31" },
-    { :name => "worker-2", :ip => "10.240.0.32"},
+    { :name => "controller-1", :ip => "192.168.1.21" },
+    { :name => "worker-1", :ip => "192.168.1.31" },
+    { :name => "worker-2", :ip => "192.168.1.32"},
   ]
 
   # Provision each of the VMs.
