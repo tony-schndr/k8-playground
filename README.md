@@ -31,7 +31,7 @@ kubeadm join 192.168.1.21:6443 --token owmpxs.7a4gv8o87do0aw3w \
 
 Apply networking plugin
 ```
-kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
 ```
 
 Smoke test
@@ -142,4 +142,24 @@ mv /var/lib/etcd/backup/member /var/lib/etcd
 Move the manifests back to start etcd and api-server
 ```
 mv /etc/kubernetes/*.yaml /etc/kubernetes/manifests/
+```
+
+### Inspecting/debugging containers
+Use crictl to get pid of a running container
+```
+root@worker-1:~# crictl inspect 911c1b7e0a9d7 | jq .info.pid
+7456
+```
+Then you can use nsenter to enter the container namespaces
+
+```
+# This example enters the containers network namespace, allowing you to use host binaries to test the containers network
+nsenter -t 7456 -n
+```
+
+### TODO:
+
+Add to env on all nodes.
+```
+export CONTAINER_RUNTIME_ENDPOINT=unix:///run/containerd/containerd.sock
 ```
